@@ -11,10 +11,13 @@ st.set_page_config(
 
 st.title("📈 Stock Chart")
 
-# Sidebar for controls
-with st.sidebar:
-    st.header("Chart Settings")
+# Chart Settings
+st.header("Chart Settings")
 
+# Arrange controls in a single row
+col1, col2, col3, col4 = st.columns([2, 1.5, 1.5, 1])
+
+with col1:
     # Symbol input (default to S&P 500)
     symbol = st.text_input(
         "Symbol",
@@ -22,12 +25,7 @@ with st.sidebar:
         help="Enter stock symbol (e.g., ^GSPC for S&P 500, AAPL for Apple)"
     )
 
-    # Link to view available symbols
-    st.markdown(
-        "[🔗 View available symbols](https://finance.yahoo.com/markets/world-indices/)"
-    )
-    st.markdown("---")
-
+with col2:
     # Period selector
     period = st.selectbox(
         "Period",
@@ -37,21 +35,28 @@ with st.sidebar:
         help="Select the time period for historical data"
     )
 
+with col3:
     # Interval selector
     interval = st.selectbox(
         "Interval",
-        options=["1m", "2m", "5m", "15m", "30m", "60m",
-                 "90m", "1h", "1d", "5d", "1wk", "1mo", "3mo"],
-        index=8,  # Default to "1d"
+        options=[ "1h", "1d", "5d", "1wk", "1mo", "3mo"],
+        index=1,  # Default to "1d"
         help="Select the data interval (1m, 5m, 1h, 1d, 1wk, 1mo, etc.)"
     )
 
+with col4:
     # Plot button
     plot_button = st.button(
         "📈 Plot Chart",
         type="primary",
-        width='stretch'
+        use_container_width=True
     )
+
+# Link to view available symbols
+st.markdown(
+    "[🔗 View available symbols](https://finance.yahoo.com/markets/world-indices/)"
+)
+st.markdown("---")
 
 # Main content area
 if plot_button:
@@ -119,4 +124,4 @@ if plot_button:
         st.info("Please check that the symbol is valid and try again.")
 else:
     st.info(
-        "👈 Enter a symbol in the sidebar, then click 'Plot Chart' to visualize the data.")
+        "👈 Enter a symbol above, then click 'Plot Chart' to visualize the data.")
