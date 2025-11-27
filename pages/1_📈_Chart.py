@@ -2,6 +2,7 @@ import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
 import pandas as pd
+from lib.line import Calculator
 
 st.set_page_config(
     page_title="Chart - Setup Predictor",
@@ -39,7 +40,7 @@ with col3:
     # Interval selector
     interval = st.selectbox(
         "Interval",
-        options=[ "1h", "1d", "5d", "1wk", "1mo", "3mo"],
+        options=["1h", "1d", "5d", "1wk", "1mo", "3mo"],
         index=1,  # Default to "1d"
         help="Select the data interval (1m, 5m, 1h, 1d, 1wk, 1mo, etc.)"
     )
@@ -83,6 +84,10 @@ if plot_button:
                     low_col = ohlc_data['Low']
                     close_col = ohlc_data['Close']
 
+                # Calculate dots using Calculator (includes x_position calculation)
+                calculator = Calculator()
+                dots_valid = calculator.calculate_dots(data, symbol)
+
                 # Create candlestick chart
                 fig = go.Figure(data=[go.Candlestick(
                     x=ohlc_data.index,
@@ -93,17 +98,45 @@ if plot_button:
                     name=symbol
                 )])
 
+                # Add dots scatter plot if we have valid dots
+                if len(dots_valid) > 0:
+                    fig.add_trace(go.Scatter(
+                        x=dots_valid['x_position'],
+                        y=dots_valid['dots'],
+                        mode='markers',
+                        name='Dots',
+                        marker=dict(
+                            size=8,
+                            color='red',
+                            symbol='circle',
+                            line=dict(width=1, color='darkred')
+                        )
+                    ))
+
+                # Get the last 10 candlesticks for zoom
+                num_candles = len(ohlc_data)
+                if num_candles > 10:
+                    # Get the last 10 index values
+                    last_10_indices = ohlc_data.index[-10:]
+                    xaxis_range = [last_10_indices[0], last_10_indices[-1]]
+                else:
+                    # If there are 10 or fewer candlesticks, show all
+                    xaxis_range = [ohlc_data.index[0], ohlc_data.index[-1]]
+
                 # Update layout
                 fig.update_layout(
                     title=f"{symbol} Candlestick Chart ({period}, {interval})",
                     xaxis_title="Date",
                     yaxis_title="Price",
                     xaxis_rangeslider_visible=False,
-                    height=600
+                    xaxis_range=xaxis_range,
+                    height=600,
+                    dragmode="pan"  # Set pan as the default tool
                 )
 
                 # Display the chart
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, width='stretch', config={
+                                "modeBarButtonsToAdd": ["pan2d"]})
 
                 # Show some basic stats
                 st.subheader("📊 Summary Statistics")

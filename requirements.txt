@@ -3,3 +3,4 @@ ipykernel
 yfinance
 plotly
 nbformat
+pandas
