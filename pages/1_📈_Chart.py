@@ -107,11 +107,135 @@ if plot_button:
                         name='Dots',
                         marker=dict(
                             size=8,
-                            color='red',
+                            color='white',
                             symbol='circle',
                             line=dict(width=1, color='darkred')
                         )
                     ))
+
+                # Define line functions configuration
+                line_configs = [
+                    {
+                        'func': calculator.get_5_2_resistance,
+                        'args': lambda: (data, symbol),
+                        'name': '5/2 Resistance',
+                        'text': lambda p1, p2: f"5-2D {p2[1]:.2f}",
+                        'color': 'red',
+                        'min_bars': 3
+                    },
+                    {
+                        'func': calculator.get_5_2_support,
+                        'args': lambda: (data, symbol),
+                        'name': '5/2 Support',
+                        'text': lambda p1, p2: f"5-2U {p2[1]:.2f}",
+                        'color': 'green',
+                        'min_bars': 3
+                    },
+                    {
+                        'func': calculator.get_5_1_resistance,
+                        'args': lambda: (data, symbol),
+                        'name': '5/1 Resistance',
+                        'text': lambda p1, p2: f"5-1D {p2[1]:.2f}",
+                        'color': 'red',
+                        'min_bars': 3
+                    },
+                    {
+                        'func': calculator.get_5_1_support,
+                        'args': lambda: (data, symbol),
+                        'name': '5/1 Support',
+                        'text': lambda p1, p2: f"5-1U {p2[1]:.2f}",
+                        'color': 'green',
+                        'min_bars': 3
+                    },
+                    {
+                        'func': calculator.get_5_3_support,
+                        'args': lambda: (data, symbol),
+                        'name': '5/3 Support',
+                        'text': lambda p1, p2: f"5-3U {p2[1]:.2f}",
+                        'color': 'green',
+                        'min_bars': 3
+                    },
+                    {
+                        'func': calculator.get_5_3_resistance,
+                        'args': lambda: (data, symbol),
+                        'name': '5/3 Resistance',
+                        'text': lambda p1, p2: f"5-3D {p2[1]:.2f}",
+                        'color': 'red',
+                        'min_bars': 3
+                    },
+                    {
+                        'func': calculator.get_5_9_support,
+                        'args': lambda: (data, symbol),
+                        'name': '5/9 Support',
+                        'text': lambda p1, p2: f"5-9U {p2[1]:.2f}",
+                        'color': 'green',
+                        'min_bars': 3
+                    },
+                    {
+                        'func': calculator.get_5_9_resistance,
+                        'args': lambda: (data, symbol),
+                        'name': '5/9 Resistance',
+                        'text': lambda p1, p2: f"5-9D {p2[1]:.2f}",
+                        'color': 'red',
+                        'min_bars': 3
+                    },
+                    {
+                        'func': calculator.get_6_1_support,
+                        'args': lambda: (data, dots_valid['dots'], symbol),
+                        'name': '6/1 Support',
+                        'text': lambda p1, p2: f"6-1U {p2[1]:.2f}",
+                        'color': 'green',
+                        'min_bars': 3
+                    },
+                    {
+                        'func': calculator.get_6_1_resistance,
+                        'args': lambda: (data, dots_valid['dots'], symbol),
+                        'name': '6/1 Resistance',
+                        'text': lambda p1, p2: f"6-1D {p2[1]:.2f}",
+                        'color': 'red',
+                        'min_bars': 3
+                    },
+                ]
+
+                # Add lines from configuration
+                for config in line_configs:
+                    if len(ohlc_data) >= config['min_bars']:
+                        args = config['args']()  # Call lambda to get args
+                        point_1, point_2 = config['func'](*args)
+                        if point_1 is not None and point_2 is not None:
+                            # Add the line
+                            fig.add_trace(go.Scatter(
+                                x=[point_1[0], point_2[0]],
+                                y=[point_1[1], point_2[1]],
+                                mode='lines',
+                                name=config['name'],
+                                line=dict(
+                                    width=2,
+                                    color=config['color'],
+                                    dash='solid'
+                                ),
+                                showlegend=False
+                            ))
+                            # Add markers with text labels
+                            text_value = config['text'](point_1, point_2)
+                            fig.add_trace(go.Scatter(
+                                x=[point_2[0]],
+                                y=[point_2[1]],
+                                mode='markers+text',
+                                name=f'{config["name"]} Points',
+                                text=[text_value],
+                                textposition="top center",
+                                marker=dict(
+                                    size=10,
+                                    color=config['color'],
+                                    symbol='circle'
+                                ),
+                                textfont=dict(
+                                    size=12,
+                                    color=config['color']
+                                ),
+                                showlegend=False
+                            ))
 
                 # Get the last 10 candlesticks for zoom
                 num_candles = len(ohlc_data)
