@@ -342,3 +342,99 @@ class Calculator:
                 return point_1, point_2
 
         return None, None
+
+    def get_6_5_resistance(self, df, dots, symbol):
+        #         6-5 DOWN is the identical calculation to 6-1 Up – except it is GREATER/EQUAL to the Close of Bar 1.
+        # The 6-5 Down (resistance) line runs from the High of Bar 1 thru Dot Bar 1 and Projects to Bar 0 Above
+        # the Close Bar 1.
+        # Equation = Dot Bar 1 – [High(1)-Dot(1)] = 6-1 Up for Bar 0 (If GREATER/EQUAL than Close of Bar 1)
+        if isinstance(df.columns, pd.MultiIndex):
+            high = df[('High', symbol)]
+            low = df[('Low', symbol)]
+            close = df[('Close', symbol)]
+        else:
+            high = df['High']
+            low = df['Low']
+            close = df['Close']
+
+        if len(high) >= 3 and len(dots) >= 3 and len(close) >= 3:
+            point_1 = (high.index[-2], high.iloc[-2])
+            projection = dots.iloc[-2] - (high.iloc[-2] - dots.iloc[-2])
+            if projection >= close.iloc[-2]:
+                point_2 = (high.index[-1], projection)
+                return point_1, point_2
+
+        return None, None
+
+    def get_6_5_support(self, df, dots, symbol):
+        #         6-5 UP is the identical calculation to 6-1 Down – except it is LESSER/EQUAL to the Close of Bar 1.
+        # 6-5 Up (support) line runs from the Low of Bar 1 thru Dot Bar 1 and Projects to Bar 0 BELOW the Close
+        # Bar 1.
+        # Equation = Dot Bar 1 + [Dot(1)-Low(1)] = 6-1 Down for Bar 0 (If LESS THAN/EQUAL than Close of Bar 1)
+        if isinstance(df.columns, pd.MultiIndex):
+            high = df[('High', symbol)]
+            low = df[('Low', symbol)]
+            close = df[('Close', symbol)]
+        else:
+            high = df['High']
+            low = df['Low']
+            close = df['Close']
+
+        if len(low) >= 3 and len(dots) >= 3 and len(close) >= 3:
+            point_1 = (low.index[-2], low.iloc[-2])
+            projection = dots.iloc[-2] + (dots.iloc[-2] - low.iloc[-2])
+            if projection <= close.iloc[-2]:
+                point_2 = (low.index[-1], projection)
+                return point_1, point_2
+
+        return None, None
+
+    def get_6_7_support(self, df, dots, symbol):
+        #         6-7 Up runs from the Low of Bar 1 to the Dot 1 (LESS THAN Low Bar1 ) and projects to Bar 0
+        # Equation = Dot 1-[(Low(1)-Dot(1)] = 6-7 Up (providing Dot 1 is BELOW Low 1)
+        if isinstance(df.columns, pd.MultiIndex):
+            high = df[('High', symbol)]
+            low = df[('Low', symbol)]
+            close = df[('Close', symbol)]
+        else:
+            high = df['High']
+            low = df['Low']
+            close = df['Close']
+
+        if len(low) >= 3 and len(dots) >= 3 and len(close) >= 3:
+            # Check if Dot 1 is BELOW Low 1
+            if dots.iloc[-2] < low.iloc[-2]:
+                # Point 1: Low of Bar 1 (Bar 1 date, Low(Bar 1))
+                point_1 = (low.index[-2], low.iloc[-2])
+                # Calculate projection: Dot(Bar 1) - [Low(Bar 1) - Dot(Bar 1)]
+                # This simplifies to: Dot(Bar 1) - Low(Bar 1) + Dot(Bar 1) = 2*Dot(Bar 1) - Low(Bar 1)
+                projection = dots.iloc[-2] - (low.iloc[-2] - dots.iloc[-2])
+                point_2 = (low.index[-1], projection)
+                return point_1, point_2
+
+        return None, None
+
+    def get_6_7_resistance(self, df, dots, symbol):
+        #         6-7 Down runs from the High of Bar 1 to the Dot 1 (Greater than High Bar 1) and projects to Bar 0
+        # Equation = Dot 1+[(Dot(1)-High(1)] = 6-7 Down (providing Dot 1 is ABOVE High 1)
+        if isinstance(df.columns, pd.MultiIndex):
+            high = df[('High', symbol)]
+            low = df[('Low', symbol)]
+            close = df[('Close', symbol)]
+        else:
+            high = df['High']
+            low = df['Low']
+            close = df['Close']
+
+        if len(high) >= 3 and len(dots) >= 3 and len(close) >= 3:
+            # Check if Dot 1 is ABOVE High 1
+            if dots.iloc[-2] > high.iloc[-2]:
+                # Point 1: High of Bar 1 (Bar 1 date, High(Bar 1))
+                point_1 = (high.index[-2], high.iloc[-2])
+                # Calculate projection: Dot(Bar 1) + [Dot(Bar 1) - High(Bar 1)]
+                # This simplifies to: Dot(Bar 1) + Dot(Bar 1) - High(Bar 1) = 2*Dot(Bar 1) - High(Bar 1)
+                projection = dots.iloc[-2] + (dots.iloc[-2] - high.iloc[-2])
+                point_2 = (high.index[-1], projection)
+                return point_1, point_2
+
+        return None, None

@@ -195,6 +195,38 @@ if plot_button:
                         'color': 'red',
                         'min_bars': 3
                     },
+                    {
+                        'func': calculator.get_6_5_resistance,
+                        'args': lambda: (data, dots_valid['dots'], symbol),
+                        'name': '6/5 Resistance',
+                        'text': lambda p1, p2: f"6-5D {p2[1]:.2f}",
+                        'color': 'red',
+                        'min_bars': 3
+                    },
+                    {
+                        'func': calculator.get_6_5_support,
+                        'args': lambda: (data, dots_valid['dots'], symbol),
+                        'name': '6/5 Support',
+                        'text': lambda p1, p2: f"6-5U {p2[1]:.2f}",
+                        'color': 'green',
+                        'min_bars': 3
+                    },
+                    {
+                        'func': calculator.get_6_7_support,
+                        'args': lambda: (data, dots_valid['dots'], symbol),
+                        'name': '6/7 Support',
+                        'text': lambda p1, p2: f"6-7U {p2[1]:.2f}",
+                        'color': 'green',
+                        'min_bars': 3
+                    },
+                    {
+                        'func': calculator.get_6_7_resistance,
+                        'args': lambda: (data, dots_valid['dots'], symbol),
+                        'name': '6/7 Resistance',
+                        'text': lambda p1, p2: f"6-7D {p2[1]:.2f}",
+                        'color': 'red',
+                        'min_bars': 3
+                    },
                 ]
 
                 # Add lines from configuration
