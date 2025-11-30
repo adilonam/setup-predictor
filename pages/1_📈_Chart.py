@@ -16,7 +16,7 @@ st.title("📈 Stock Chart")
 st.header("Chart Settings")
 
 # Arrange controls in a single row
-col1, col2, col3, col4 = st.columns([2, 1.5, 1.5, 1])
+col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
 
 with col1:
     # Symbol input (default to S&P 500)
@@ -46,6 +46,15 @@ with col3:
     )
 
 with col4:
+    # Chart type selector
+    chart_type = st.selectbox(
+        "Chart Type",
+        options=["Candlestick", "Bar"],
+        index=1,  # Default to "Bar" as per recent change
+        help="Select the chart style"
+    )
+
+with col5:
     # Plot button
     plot_button = st.button(
         "📈 Plot Chart",
@@ -88,15 +97,28 @@ if plot_button:
                 calculator = Calculator()
                 dots_valid = calculator.calculate_dots(data, symbol)
 
-                # Create candlestick chart
-                fig = go.Figure(data=[go.Candlestick(
-                    x=ohlc_data.index,
-                    open=open_col,
-                    high=high_col,
-                    low=low_col,
-                    close=close_col,
-                    name=symbol
-                )])
+                # Create chart based on selection
+                if chart_type == "Bar":
+                    trace = go.Ohlc(
+                        x=ohlc_data.index,
+                        open=open_col,
+                        high=high_col,
+                        low=low_col,
+                        close=close_col,
+                        name=symbol,
+                        tickwidth=0.06
+                    )
+                else:
+                    trace = go.Candlestick(
+                        x=ohlc_data.index,
+                        open=open_col,
+                        high=high_col,
+                        low=low_col,
+                        close=close_col,
+                        name=symbol,
+                    )
+
+                fig = go.Figure(data=[trace])
 
                 # Add dots scatter plot if we have valid dots
                 if len(dots_valid) > 0:
@@ -269,19 +291,19 @@ if plot_button:
                                 showlegend=False
                             ))
 
-                # Get the last 10 candlesticks for zoom
+                # Get the last 10 bars for zoom
                 num_candles = len(ohlc_data)
                 if num_candles > 10:
                     # Get the last 10 index values
                     last_10_indices = ohlc_data.index[-10:]
                     xaxis_range = [last_10_indices[0], last_10_indices[-1]]
                 else:
-                    # If there are 10 or fewer candlesticks, show all
+                    # If there are 10 or fewer bars, show all
                     xaxis_range = [ohlc_data.index[0], ohlc_data.index[-1]]
 
                 # Update layout
                 fig.update_layout(
-                    title=f"{symbol} Candlestick Chart ({period}, {interval})",
+                    title=f"{symbol} {chart_type} Chart ({period}, {interval})",
                     xaxis_title="Date",
                     yaxis_title="Price",
                     xaxis_rangeslider_visible=False,
@@ -313,4 +335,4 @@ if plot_button:
         st.info("Please check that the symbol is valid and try again.")
 else:
     st.info(
-        "👈 Enter a symbol above, then click 'Plot Chart' to visualize the data.")
+        "Enter a symbol above, then click 'Plot Chart' to visualize the data.")
