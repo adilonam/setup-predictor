@@ -322,26 +322,37 @@ if plot_button:
                                 showlegend=False
                             ))
 
-                # Get the last 10 bars for zoom
-                num_candles = len(ohlc_data)
-                if num_candles > 10:
-                    # Get the last 10 index values
-                    last_10_indices = ohlc_data.index[-10:]
-                    xaxis_range = [last_10_indices[0], last_10_indices[-1]]
-                else:
-                    # If there are 10 or fewer bars, show all
-                    xaxis_range = [ohlc_data.index[0], ohlc_data.index[-1]]
-
-                # Update layout
+                # Update layout with auto-scale initially
                 fig.update_layout(
                     title=f"{symbol} {chart_type} Chart ({period}, {interval})",
                     xaxis_title="Date",
                     yaxis_title="Price",
                     xaxis_rangeslider_visible=False,
-                    xaxis_range=xaxis_range,
-                    height=600,
-                    dragmode="pan"  # Set pan as the default tool
+                    height=700,  # Good height for the chart
+                    dragmode="pan",  # Set pan as the default tool
+                    autosize=True,
                 )
+
+                # After layout, zoom to show last n bars
+                n = 5
+                num_candles = len(ohlc_data)
+                if num_candles > n:
+                    # Get the last n candles for y-axis range calculation
+                    last_n_high = high_col.iloc[-n:].max()
+                    last_n_low = low_col.iloc[-n:].min()
+                    # Add some padding (5% on each side)
+                    y_padding = (last_n_high - last_n_low) * 0.05
+                    y_range = [last_n_low - y_padding, last_n_high + y_padding]
+
+                    # Get the last n index values for x-axis
+                    last_n_indices = ohlc_data.index[-n:]
+                    fig.update_xaxes(
+                        range=[last_n_indices[0], last_n_indices[-1]])
+                    # Set y-axis to fit the last n candles
+                    fig.update_yaxes(range=y_range)
+                else:
+                    # If there are n or fewer bars, show all (already auto-scaled)
+                    pass
 
                 # Store figure in session state
                 st.session_state.chart_fig = fig
@@ -397,7 +408,6 @@ if st.session_state.chart_fig is not None and st.session_state.chart_data is not
                         api_key = st.secrets.api_key
                     except:
                         st.error("API key not found")
-                        
 
                     # Recreate calculator
                     calculator = Calculator()
