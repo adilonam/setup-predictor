@@ -68,6 +68,14 @@ st.markdown(
 )
 st.markdown("---")
 
+# Initialize session state
+if 'chart_data' not in st.session_state:
+    st.session_state.chart_data = None
+if 'chart_fig' not in st.session_state:
+    st.session_state.chart_fig = None
+if 'analysis_result' not in st.session_state:
+    st.session_state.analysis_result = None
+
 # Main content area
 if plot_button:
     try:
@@ -97,6 +105,21 @@ if plot_button:
                 calculator = Calculator()
                 dots_valid = calculator.calculate_dots(data, symbol)
 
+                # Store data in session state (don't store calculator, recreate it when needed)
+                st.session_state.chart_data = {
+                    'data': data,
+                    'dots_valid': dots_valid,
+                    'symbol': symbol,
+                    'ohlc_data': ohlc_data,
+                    'open_col': open_col,
+                    'high_col': high_col,
+                    'low_col': low_col,
+                    'close_col': close_col,
+                    'chart_type': chart_type,
+                    'period': period,
+                    'interval': interval
+                }
+
                 # Create chart based on selection
                 if chart_type == "Bar":
                     trace = go.Ohlc(
@@ -106,7 +129,6 @@ if plot_button:
                         low=low_col,
                         close=close_col,
                         name=symbol,
-                        tickwidth=0.06
                     )
                 else:
                     trace = go.Candlestick(
@@ -117,7 +139,6 @@ if plot_button:
                         close=close_col,
                         name=symbol,
                     )
-
                 fig = go.Figure(data=[trace])
 
                 # Add dots scatter plot if we have valid dots
@@ -251,12 +272,22 @@ if plot_button:
                     },
                 ]
 
+                # Collect resistance and support data for LLM analysis
+                resistances = []
+                supports = []
+
                 # Add lines from configuration
                 for config in line_configs:
                     if len(ohlc_data) >= config['min_bars']:
                         args = config['args']()  # Call lambda to get args
                         point_1, point_2 = config['func'](*args)
                         if point_1 is not None and point_2 is not None:
+                            # Collect data for analysis
+                            if 'Resistance' in config['name']:
+                                resistances.append((point_1, point_2))
+                            elif 'Support' in config['name']:
+                                supports.append((point_1, point_2))
+
                             # Add the line
                             fig.add_trace(go.Scatter(
                                 x=[point_1[0], point_2[0]],
@@ -312,27 +343,116 @@ if plot_button:
                     dragmode="pan"  # Set pan as the default tool
                 )
 
-                # Display the chart
-                st.plotly_chart(fig, width='stretch', config={
-                                "modeBarButtonsToAdd": ["pan2d"]})
-
-                # Show some basic stats
-                st.subheader("📊 Summary Statistics")
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("Current Price", f"${close_col.iloc[-1]:.2f}")
-                with col2:
-                    st.metric("High", f"${high_col.max():.2f}")
-                with col3:
-                    st.metric("Low", f"${low_col.min():.2f}")
-                with col4:
-                    change = close_col.iloc[-1] - close_col.iloc[0]
-                    change_pct = (change / close_col.iloc[0]) * 100
-                    st.metric("Change", f"${change:.2f}", f"{change_pct:.2f}%")
+                # Store figure in session state
+                st.session_state.chart_fig = fig
+                st.session_state.chart_data['resistances'] = resistances
+                st.session_state.chart_data['supports'] = supports
 
     except Exception as e:
         st.error(f"Error: {str(e)}")
         st.info("Please check that the symbol is valid and try again.")
+        st.session_state.chart_data = None
+        st.session_state.chart_fig = None
+
+# Display chart if available in session state
+if st.session_state.chart_fig is not None and st.session_state.chart_data is not None:
+    chart_data = st.session_state.chart_data
+
+    # Display the chart
+    st.plotly_chart(st.session_state.chart_fig, width='stretch', config={
+                    "modeBarButtonsToAdd": ["pan2d"]})
+
+    # Show some basic stats
+    st.subheader("📊 Summary Statistics")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Current Price", f"${chart_data['close_col'].iloc[-1]:.2f}")
+    with col2:
+        st.metric("High", f"${chart_data['high_col'].max():.2f}")
+    with col3:
+        st.metric("Low", f"${chart_data['low_col'].min():.2f}")
+    with col4:
+        change = chart_data['close_col'].iloc[-1] - \
+            chart_data['close_col'].iloc[0]
+        change_pct = (change / chart_data['close_col'].iloc[0]) * 100
+        st.metric("Change", f"${change:.2f}", f"{change_pct:.2f}%")
+
+    # LLM Analysis Section
+    st.markdown("---")
+    st.subheader("🤖 LLM Analysis")
+
+    analyze_button = st.button(
+        "🔍 Analyze using LLM",
+        type="primary",
+        use_container_width=True
+    )
+
+    if analyze_button or st.session_state.analysis_result is not None:
+        if analyze_button:
+            with st.spinner("Analyzing with LLM..."):
+                try:
+                    # Get API key from Streamlit secrets
+                    api_key = None
+                    try:
+                        api_key = st.secrets.api_key
+                    except:
+                        st.error("API key not found")
+                        
+
+                    # Recreate calculator
+                    calculator = Calculator()
+                    # Get analysis from Groq
+                    analysis_result = calculator.get_gpt_analysis(
+                        chart_data['data'],
+                        chart_data['dots_valid'],
+                        chart_data['symbol'],
+                        chart_data['resistances'],
+                        chart_data['supports'],
+                        api_key=api_key
+                    )
+                    # Store in session state
+                    st.session_state.analysis_result = analysis_result
+                except Exception as e:
+                    st.error(f"Error during analysis: {str(e)}")
+                    st.session_state.analysis_result = None
+
+        # Display stored analysis result
+        if st.session_state.analysis_result is not None:
+            analysis_result = st.session_state.analysis_result
+
+            if analysis_result.get('error'):
+                st.error(f"Error: {analysis_result['error']}")
+            else:
+                # Display analysis
+                if analysis_result.get('analysis'):
+                    st.markdown("### 📝 Analysis")
+                    st.write(analysis_result['analysis'])
+
+                # Display probabilities
+                col_prob1, col_prob2 = st.columns(2)
+                with col_prob1:
+                    prob_up = analysis_result.get('probability_up')
+                    if prob_up is not None:
+                        st.metric(
+                            "Probability UP",
+                            f"{prob_up:.1f}%",
+                            delta=f"{prob_up:.1f}%"
+                        )
+
+                with col_prob2:
+                    prob_down = analysis_result.get('probability_down')
+                    if prob_down is not None:
+                        st.metric(
+                            "Probability DOWN",
+                            f"{prob_down:.1f}%",
+                            delta=f"-{prob_down:.1f}%"
+                        )
+
+                # Show raw response in expander
+                with st.expander("View Raw Response"):
+                    st.text(analysis_result.get('raw_response', 'No response'))
+
 else:
-    st.info(
-        "Enter a symbol above, then click 'Plot Chart' to visualize the data.")
+    if st.session_state.chart_data is None:
+        st.info(
+            "Enter a symbol above, then click 'Plot Chart' to visualize the data.")

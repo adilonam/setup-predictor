@@ -1,4 +1,17 @@
 import pandas as pd
+import os
+try:
+    from dotenv import load_dotenv
+    load_dotenv()  # Load environment variables from .env file
+    DOTENV_AVAILABLE = True
+except ImportError:
+    DOTENV_AVAILABLE = False
+
+try:
+    from groq import Groq
+    GROQ_AVAILABLE = True
+except ImportError:
+    GROQ_AVAILABLE = False
 
 
 class Calculator:
@@ -438,3 +451,204 @@ class Calculator:
                 return point_1, point_2
 
         return None, None
+
+    def get_prompt(self, df, dots, symbol, resistances, supports):
+        if isinstance(df.columns, pd.MultiIndex):
+            high = df[('High', symbol)]
+            low = df[('Low', symbol)]
+            close = df[('Close', symbol)]
+            open_price = df[('Open', symbol)]
+        else:
+            high = df['High']
+            low = df['Low']
+            close = df['Close']
+            open_price = df['Open']
+
+        # Get last 10 bars
+        last_10_bars = df.tail(10)
+
+        # Format OHLC data for the last 10 bars
+        bars_data = []
+        for idx, row in last_10_bars.iterrows():
+            if isinstance(df.columns, pd.MultiIndex):
+                bar_info = {
+                    'date': str(idx),
+                    'open': row[('Open', symbol)],
+                    'high': row[('High', symbol)],
+                    'low': row[('Low', symbol)],
+                    'close': row[('Close', symbol)]
+                }
+            else:
+                bar_info = {
+                    'date': str(idx),
+                    'open': row['Open'],
+                    'high': row['High'],
+                    'low': row['Low'],
+                    'close': row['Close']
+                }
+            bars_data.append(bar_info)
+
+        # Format resistance lines
+        resistance_lines = []
+        for res in resistances:
+            if res[0] is not None and res[1] is not None:
+                resistance_lines.append({
+                    'point1': {'date': str(res[0][0]), 'price': res[0][1]},
+                    'point2': {'date': str(res[1][0]), 'price': res[1][1]}
+                })
+
+        # Format support lines
+        support_lines = []
+        for sup in supports:
+            if sup[0] is not None and sup[1] is not None:
+                support_lines.append({
+                    'point1': {'date': str(sup[0][0]), 'price': sup[0][1]},
+                    'point2': {'date': str(sup[1][0]), 'price': sup[1][1]}
+                })
+
+        # Current price (last close)
+        current_price = close.iloc[-1]
+
+        # Create the prompt
+        prompt = f"""You are a technical analysis expert. Analyze the following stock data for {symbol} and provide a brief analysis report.
+
+LAST 10 BARS (OHLC Data):
+"""
+        for i, bar in enumerate(bars_data, 1):
+            prompt += f"Bar {i} ({bar['date']}): Open={bar['open']:.2f}, High={bar['high']:.2f}, Low={bar['low']:.2f}, Close={bar['close']:.2f}\n"
+
+        prompt += f"\nCURRENT PRICE: {current_price:.2f}\n\n"
+
+        if resistance_lines:
+            prompt += f"RESISTANCE LEVELS ({len(resistance_lines)} lines):\n"
+            for i, res in enumerate(resistance_lines, 1):
+                prompt += f"Resistance {i}: From ({res['point1']['date']}, {res['point1']['price']:.2f}) to ({res['point2']['date']}, {res['point2']['price']:.2f})\n"
+        else:
+            prompt += "RESISTANCE LEVELS: None identified\n"
+
+        prompt += "\n"
+
+        if support_lines:
+            prompt += f"SUPPORT LEVELS ({len(support_lines)} lines):\n"
+            for i, sup in enumerate(support_lines, 1):
+                prompt += f"Support {i}: From ({sup['point1']['date']}, {sup['point1']['price']:.2f}) to ({sup['point2']['date']}, {sup['point2']['price']:.2f})\n"
+        else:
+            prompt += "SUPPORT LEVELS: None identified\n"
+
+        prompt += """
+Based on this data, provide:
+1. A brief technical analysis (2-3 sentences)
+2. The probability (as a percentage) that the price will go UP in the near term
+3. The probability (as a percentage) that the price will go DOWN in the near term
+
+Format your response as:
+ANALYSIS: [your analysis]
+PROBABILITY UP: [percentage]%
+PROBABILITY DOWN: [percentage]%
+"""
+
+        return prompt
+
+    def get_gpt_analysis(self, df, dots, symbol, resistances, supports, api_key=None):
+        """
+        Get GPT analysis for the stock data using Groq API.
+
+        Args:
+            df: DataFrame with OHLC data
+            dots: Dots DataFrame
+            symbol: Stock symbol
+            resistances: List of resistance lines as tuples ((p1_x, p1_y), (p2_x, p2_y))
+            supports: List of support lines as tuples ((p1_x, p1_y), (p2_x, p2_y))
+            api_key: Groq API key (if None, tries to get from environment or Streamlit secrets)
+
+        Returns:
+            Dictionary with 'analysis', 'probability_up', 'probability_down', and 'raw_response'
+        """
+        if not GROQ_AVAILABLE:
+            return {
+                'error': 'Groq library not installed. Please install it with: pip install groq',
+                'analysis': None,
+                'probability_up': None,
+                'probability_down': None,
+                'raw_response': None
+            }
+
+        
+
+        if api_key is None:
+            return {
+                'error': 'Groq API key not provided. Please set GROQ_API_KEY environment variable or pass api_key parameter.',
+                'analysis': None,
+                'probability_up': None,
+                'probability_down': None,
+                'raw_response': None
+            }
+
+        # Generate the user prompt
+        user_prompt = self.get_prompt(
+            df, dots, symbol, resistances, supports)
+
+        # System prompt
+        system_prompt = """You are an expert technical analyst specializing in stock market analysis. 
+You analyze price charts, support and resistance levels, and provide clear, concise technical analysis.
+You provide probabilities based on technical indicators, price action, and support/resistance levels.
+Always format your response exactly as requested with ANALYSIS, PROBABILITY UP, and PROBABILITY DOWN sections.
+The probabilities should add up to 100%."""
+
+        try:
+            # Initialize Groq client
+            client = Groq(api_key=api_key)
+
+            # Call Groq API
+            response = client.chat.completions.create(
+                model="openai/gpt-oss-20b",  # Using Llama 3.1 70B model via Groq
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.7,
+                max_tokens=500
+            )
+
+            raw_response = response.choices[0].message.content
+
+            # Parse the response
+            analysis = None
+            probability_up = None
+            probability_down = None
+
+            lines = raw_response.split('\n')
+            for line in lines:
+                if line.startswith('ANALYSIS:'):
+                    analysis = line.replace('ANALYSIS:', '').strip()
+                elif line.startswith('PROBABILITY UP:'):
+                    prob_text = line.replace(
+                        'PROBABILITY UP:', '').strip().replace('%', '')
+                    try:
+                        probability_up = float(prob_text)
+                    except:
+                        pass
+                elif line.startswith('PROBABILITY DOWN:'):
+                    prob_text = line.replace(
+                        'PROBABILITY DOWN:', '').strip().replace('%', '')
+                    try:
+                        probability_down = float(prob_text)
+                    except:
+                        pass
+
+            return {
+                'analysis': analysis,
+                'probability_up': probability_up,
+                'probability_down': probability_down,
+                'raw_response': raw_response,
+                'error': None
+            }
+
+        except Exception as e:
+            return {
+                'error': f'Error calling Groq API: {str(e)}',
+                'analysis': None,
+                'probability_up': None,
+                'probability_down': None,
+                'raw_response': None
+            }
