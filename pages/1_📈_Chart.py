@@ -337,18 +337,45 @@ if plot_button:
                 n = 5
                 num_candles = len(ohlc_data)
                 if num_candles > n:
+                    # Get the last n index values for x-axis
+                    last_n_indices = ohlc_data.index[-n:]
+                    x_range_start = last_n_indices[0]
+                    x_range_end = last_n_indices[-1]
+
                     # Get the last n candles for y-axis range calculation
                     last_n_high = high_col.iloc[-n:].max()
                     last_n_low = low_col.iloc[-n:].min()
-                    # Add some padding (5% on each side)
-                    y_padding = (last_n_high - last_n_low) * 0.05
-                    y_range = [last_n_low - y_padding, last_n_high + y_padding]
 
-                    # Get the last n index values for x-axis
-                    last_n_indices = ohlc_data.index[-n:]
+                    # Include resistance and support points that intersect with the visible range
+                    all_y_values = [last_n_high, last_n_low]
+
+                    # Check all resistance and support lines
+                    for line_points in resistances + supports:
+                        point_1, point_2 = line_points
+                        _, y1 = point_1  # Only use y value, ignore timestamp index
+                        _, y2 = point_2  # Only use y value, ignore timestamp index
+
+                        # Check if line intersects with visible x-axis range using timestamps
+                        x1, _ = point_1
+                        x2, _ = point_2
+                        line_x_min = min(x1, x2)
+                        line_x_max = max(x1, x2)
+
+                        # If line overlaps with visible range, add its y values
+                        if line_x_max >= x_range_start and line_x_min <= x_range_end:
+                            all_y_values.extend([y1, y2])
+
+                    # Calculate min and max including resistance/support points
+                    y_min = min(all_y_values)
+                    y_max = max(all_y_values)
+
+                    # Add some padding (5% on each side)
+                    y_padding = (y_max - y_min) * 0.1
+                    y_range = [y_min - y_padding, y_max + y_padding]
+
                     fig.update_xaxes(
-                        range=[last_n_indices[0], last_n_indices[-1]])
-                    # Set y-axis to fit the last n candles
+                        range=[x_range_start, x_range_end])
+                    # Set y-axis to fit the last n candles and visible resistance/support points
                     fig.update_yaxes(range=y_range)
                 else:
                     # If there are n or fewer bars, show all (already auto-scaled)
