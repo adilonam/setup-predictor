@@ -16,7 +16,7 @@ st.title("📈 Stock Chart")
 st.header("Chart Settings")
 
 # Arrange controls in a single row
-col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
+col1, col2, col3, col4, col5, col6 = st.columns([2, 1, 1, 1, 1, 1])
 
 with col1:
     # Symbol input (default to S&P 500)
@@ -55,6 +55,17 @@ with col4:
     )
 
 with col5:
+    # Index selector for resistance/support calculations
+    bar_index = st.number_input(
+        "Bar Index",
+        value=-1,
+        min_value=-1000,
+        max_value=1000,
+        step=1,
+        help="Index of the bar to calculate lines for (-1 = last bar, -2 = second to last, etc.)"
+    )
+
+with col6:
     # Plot button
     plot_button = st.button(
         "📈 Plot Chart",
@@ -160,7 +171,7 @@ if plot_button:
                 line_configs = [
                     {
                         'func': calculator.get_5_2_resistance,
-                        'args': lambda: (data, symbol),
+                        'args': lambda: (data, symbol, bar_index),
                         'name': '5/2 Resistance',
                         'text': lambda p1, p2: f"5-2D {p2[1]:.2f}",
                         'color': 'red',
@@ -168,7 +179,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_5_2_support,
-                        'args': lambda: (data, symbol),
+                        'args': lambda: (data, symbol, bar_index),
                         'name': '5/2 Support',
                         'text': lambda p1, p2: f"5-2U {p2[1]:.2f}",
                         'color': 'green',
@@ -176,7 +187,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_5_1_resistance,
-                        'args': lambda: (data, symbol),
+                        'args': lambda: (data, symbol, bar_index),
                         'name': '5/1 Resistance',
                         'text': lambda p1, p2: f"5-1D {p2[1]:.2f}",
                         'color': 'red',
@@ -184,7 +195,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_5_1_support,
-                        'args': lambda: (data, symbol),
+                        'args': lambda: (data, symbol, bar_index),
                         'name': '5/1 Support',
                         'text': lambda p1, p2: f"5-1U {p2[1]:.2f}",
                         'color': 'green',
@@ -192,7 +203,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_5_3_support,
-                        'args': lambda: (data, symbol),
+                        'args': lambda: (data, symbol, bar_index),
                         'name': '5/3 Support',
                         'text': lambda p1, p2: f"5-3U {p2[1]:.2f}",
                         'color': 'green',
@@ -200,7 +211,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_5_3_resistance,
-                        'args': lambda: (data, symbol),
+                        'args': lambda: (data, symbol, bar_index),
                         'name': '5/3 Resistance',
                         'text': lambda p1, p2: f"5-3D {p2[1]:.2f}",
                         'color': 'red',
@@ -208,7 +219,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_5_9_support,
-                        'args': lambda: (data, symbol),
+                        'args': lambda: (data, symbol, bar_index),
                         'name': '5/9 Support',
                         'text': lambda p1, p2: f"5-9U {p2[1]:.2f}",
                         'color': 'green',
@@ -216,7 +227,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_5_9_resistance,
-                        'args': lambda: (data, symbol),
+                        'args': lambda: (data, symbol, bar_index),
                         'name': '5/9 Resistance',
                         'text': lambda p1, p2: f"5-9D {p2[1]:.2f}",
                         'color': 'red',
@@ -224,7 +235,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_6_1_support,
-                        'args': lambda: (data, dots_valid['dots'], symbol),
+                        'args': lambda: (data, dots_valid['dots'], symbol, bar_index),
                         'name': '6/1 Support',
                         'text': lambda p1, p2: f"6-1U {p2[1]:.2f}",
                         'color': 'green',
@@ -232,7 +243,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_6_1_resistance,
-                        'args': lambda: (data, dots_valid['dots'], symbol),
+                        'args': lambda: (data, dots_valid['dots'], symbol, bar_index),
                         'name': '6/1 Resistance',
                         'text': lambda p1, p2: f"6-1D {p2[1]:.2f}",
                         'color': 'red',
@@ -240,7 +251,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_6_5_resistance,
-                        'args': lambda: (data, dots_valid['dots'], symbol),
+                        'args': lambda: (data, dots_valid['dots'], symbol, bar_index),
                         'name': '6/5 Resistance',
                         'text': lambda p1, p2: f"6-5D {p2[1]:.2f}",
                         'color': 'red',
@@ -248,7 +259,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_6_5_support,
-                        'args': lambda: (data, dots_valid['dots'], symbol),
+                        'args': lambda: (data, dots_valid['dots'], symbol, bar_index),
                         'name': '6/5 Support',
                         'text': lambda p1, p2: f"6-5U {p2[1]:.2f}",
                         'color': 'green',
@@ -256,7 +267,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_6_7_support,
-                        'args': lambda: (data, dots_valid['dots'], symbol),
+                        'args': lambda: (data, dots_valid['dots'], symbol, bar_index),
                         'name': '6/7 Support',
                         'text': lambda p1, p2: f"6-7U {p2[1]:.2f}",
                         'color': 'green',
@@ -264,7 +275,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_6_7_resistance,
-                        'args': lambda: (data, dots_valid['dots'], symbol),
+                        'args': lambda: (data, dots_valid['dots'], symbol, bar_index),
                         'name': '6/7 Resistance',
                         'text': lambda p1, p2: f"6-7D {p2[1]:.2f}",
                         'color': 'red',
