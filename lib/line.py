@@ -467,7 +467,12 @@ class Calculator:
         else:
             pos_index = index
 
-        if pos_index >= 2 and pos_index < len(low) and len(dots) >= abs(index) if index < 0 else len(dots) > index:
+        # Check if we have enough dots data (need bar_1_idx which is index-1)
+        bar_1_idx = index - 1
+        dots_len = len(dots) if isinstance(dots, pd.DataFrame) else len(dots)
+        dots_pos_idx = dots_len + bar_1_idx if bar_1_idx < 0 else bar_1_idx
+
+        if pos_index >= 2 and pos_index < len(low) and dots_pos_idx >= 0 and dots_pos_idx < dots_len:
             bar_0_idx = index
             bar_1_idx = index - 1
             bar_2_idx = index - 2
@@ -552,7 +557,12 @@ class Calculator:
         else:
             pos_index = index
 
-        if pos_index >= 2 and pos_index < len(low) and len(dots) >= abs(index) if index < 0 else len(dots) > index:
+        # Check if we have enough dots data (need bar_1_idx which is index-1)
+        bar_1_idx = index - 1
+        dots_len = len(dots) if isinstance(dots, pd.DataFrame) else len(dots)
+        dots_pos_idx = dots_len + bar_1_idx if bar_1_idx < 0 else bar_1_idx
+
+        if pos_index >= 2 and pos_index < len(low) and dots_pos_idx >= 0 and dots_pos_idx < dots_len:
             bar_0_idx = index
             bar_1_idx = index - 1
             bar_2_idx = index - 2
@@ -590,7 +600,12 @@ class Calculator:
         else:
             pos_index = index
 
-        if pos_index >= 2 and pos_index < len(low) and len(dots) >= abs(index) if index < 0 else len(dots) > index:
+        # Check if we have enough dots data (need bar_1_idx which is index-1)
+        bar_1_idx = index - 1
+        dots_len = len(dots) if isinstance(dots, pd.DataFrame) else len(dots)
+        dots_pos_idx = dots_len + bar_1_idx if bar_1_idx < 0 else bar_1_idx
+
+        if pos_index >= 2 and pos_index < len(low) and dots_pos_idx >= 0 and dots_pos_idx < dots_len:
             bar_0_idx = index
             bar_1_idx = index - 1
             bar_2_idx = index - 2
