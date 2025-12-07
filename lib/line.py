@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import os
 try:
     from dotenv import load_dotenv
@@ -12,6 +13,19 @@ try:
     GROQ_AVAILABLE = True
 except ImportError:
     GROQ_AVAILABLE = False
+
+try:
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.impute import SimpleImputer
+    SKLEARN_AVAILABLE = True
+except ImportError:
+    SKLEARN_AVAILABLE = False
+
+try:
+    import tensorflow as tf
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
+    TENSORFLOW_AVAILABLE = False
 
 
 class Calculator:
@@ -874,3 +888,177 @@ The probabilities should add up to 100%."""
                 'probability_down': None,
                 'raw_response': None
             }
+
+    def create_result_df(self, df, symbol):
+        """Create result_df with all resistance/support calculations and price_up target"""
+        # Calculate dots first (needed for 6-x methods)
+        dots_valid = self.calculate_dots(df, symbol)
+
+        # Start with a copy of the original dataframe
+        result_df = df.copy()
+
+        # Add dots column
+        if isinstance(result_df.columns, pd.MultiIndex):
+            dots_series = pd.Series(index=df.index, dtype=float)
+            dots_series.loc[dots_valid.index] = dots_valid['dots'].values
+            result_df[('Dots', symbol)] = dots_series
+        else:
+            dots_series = pd.Series(index=df.index, dtype=float)
+            dots_series.loc[dots_valid.index] = dots_valid['dots'].values
+            result_df['Dots'] = dots_series
+
+        # Define all resistance and support function names
+        line_functions = [
+            ('5_2_resistance', self.get_5_2_resistance, False),
+            ('5_2_support', self.get_5_2_support, False),
+            ('5_1_resistance', self.get_5_1_resistance, False),
+            ('5_1_support', self.get_5_1_support, False),
+            ('5_3_resistance', self.get_5_3_resistance, False),
+            ('5_3_support', self.get_5_3_support, False),
+            ('5_9_resistance', self.get_5_9_resistance, False),
+            ('5_9_support', self.get_5_9_support, False),
+            ('6_1_resistance', self.get_6_1_resistance, True),
+            ('6_1_support', self.get_6_1_support, True),
+            ('6_5_resistance', self.get_6_5_resistance, True),
+            ('6_5_support', self.get_6_5_support, True),
+            ('6_7_resistance', self.get_6_7_resistance, True),
+            ('6_7_support', self.get_6_7_support, True),
+        ]
+
+        # Initialize columns for all resistance/support types
+        for col_name, _, _ in line_functions:
+            if isinstance(result_df.columns, pd.MultiIndex):
+                result_df[(col_name, symbol)] = np.nan
+            else:
+                result_df[col_name] = np.nan
+
+        # Initialize binary target column
+        if isinstance(result_df.columns, pd.MultiIndex):
+            result_df[('price_up', symbol)] = np.nan
+        else:
+            result_df['price_up'] = np.nan
+
+        # Get dots as Series for 6-x functions
+        if isinstance(dots_valid, pd.DataFrame):
+            dots_series_for_calc = dots_valid['dots']
+        else:
+            dots_series_for_calc = dots_valid
+
+        # Iterate through all valid indices
+        num_rows = len(df)
+
+        for idx in range(2, num_rows):
+            index = -(num_rows - idx)
+
+            # Calculate all lines for this index
+            for col_name, func, needs_dots in line_functions:
+                try:
+                    if needs_dots:
+                        point_1, point_2 = func(
+                            df, dots_series_for_calc, symbol, index)
+                    else:
+                        point_1, point_2 = func(df, symbol, index)
+
+                    # Store point2 y-value if line exists
+                    if point_1 is not None and point_2 is not None:
+                        y_value = point_2[1]
+                        if isinstance(result_df.columns, pd.MultiIndex):
+                            result_df.loc[df.index[idx],
+                                          (col_name, symbol)] = y_value
+                        else:
+                            result_df.loc[df.index[idx], col_name] = y_value
+                except Exception as e:
+                    pass
+
+        # Calculate binary target: 1 if price goes up next, 0 if down
+        if isinstance(result_df.columns, pd.MultiIndex):
+            close_col = result_df[('Close', symbol)]
+            target_col = ('price_up', symbol)
+        else:
+            close_col = result_df['Close']
+            target_col = 'price_up'
+
+        # For each row, compare current close with next close
+        for idx in range(len(result_df) - 1):
+            current_close = close_col.iloc[idx]
+            next_close = close_col.iloc[idx + 1]
+
+            price_up_value = 1 if next_close > current_close else 0
+
+            if isinstance(result_df.columns, pd.MultiIndex):
+                result_df.iloc[idx, result_df.columns.get_loc(
+                    target_col)] = price_up_value
+            else:
+                result_df.iloc[idx, result_df.columns.get_loc(
+                    target_col)] = price_up_value
+
+        return result_df
+
+    def prepare_model_data(self, result_df, symbol):
+        """Prepare data for model training/prediction"""
+        if not SKLEARN_AVAILABLE:
+            raise ImportError(
+                "scikit-learn is required for prepare_model_data")
+
+        # Extract feature columns (all except price_up)
+        if isinstance(result_df.columns, pd.MultiIndex):
+            feature_cols = [
+                col for col in result_df.columns if col[0] != 'price_up']
+            target_col = ('price_up', symbol)
+        else:
+            feature_cols = [
+                col for col in result_df.columns if col != 'price_up']
+            target_col = 'price_up'
+
+        # Create feature and target dataframes
+        X = result_df[feature_cols].copy()
+        y = result_df[target_col].copy()
+
+        # Remove rows where target is NaN
+        valid_mask = ~y.isna()
+        X = X[valid_mask]
+        y = y[valid_mask]
+
+        # Handle NaN values in features
+        imputer = SimpleImputer(strategy='median')
+        X_imputed = pd.DataFrame(
+            imputer.fit_transform(X),
+            columns=X.columns,
+            index=X.index
+        )
+
+        return X_imputed, y, imputer
+
+    def create_model(self, n_features):
+        """Create TensorFlow model"""
+        if not TENSORFLOW_AVAILABLE:
+            raise ImportError("TensorFlow is required for create_model")
+
+        from tensorflow.keras.models import Sequential
+        from tensorflow.keras.layers import Dense, Dropout, BatchNormalization
+        from tensorflow.keras.optimizers import Adam
+
+        tf.keras.backend.clear_session()
+
+        model = Sequential([
+            Dense(128, activation='relu', input_shape=(n_features,)),
+            BatchNormalization(),
+            Dropout(0.3),
+
+            Dense(64, activation='relu'),
+            BatchNormalization(),
+            Dropout(0.3),
+
+            Dense(32, activation='relu'),
+            Dropout(0.2),
+
+            Dense(1, activation='sigmoid')
+        ])
+
+        model.compile(
+            optimizer=Adam(learning_rate=0.001),
+            loss='binary_crossentropy',
+            metrics=['accuracy', 'precision', 'recall']
+        )
+
+        return model

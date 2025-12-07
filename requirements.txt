@@ -5,3 +5,7 @@ plotly
 nbformat
 pandas
 groq
+tensorflow
+scikit-learn
+matplotlib
+numpy
