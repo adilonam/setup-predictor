@@ -1,5 +1,4 @@
 import streamlit as st
-import yfinance as yf
 import plotly.graph_objects as go
 import pandas as pd
 from lib.line import Calculator
@@ -91,8 +90,10 @@ if 'analysis_result' not in st.session_state:
 if plot_button:
     try:
         with st.spinner("Downloading data..."):
-            # Download historical data with selected period and interval
-            data = yf.download(symbol, period=period, interval=interval)
+            # Download historical data using Calculator
+            calculator = Calculator()
+            data = calculator.download_data(
+                symbol, period=period, interval=interval)
 
             if data.empty:
                 st.error(f"No data found for symbol: {symbol}")
@@ -113,12 +114,10 @@ if plot_button:
                     close_col = ohlc_data['Close']
 
                 # Calculate dots using Calculator (includes x_position calculation)
-                calculator = Calculator()
-                dots_valid = calculator.calculate_dots(data, symbol)
+                dots_valid = calculator.calculate_dots(data)
 
                 # Get trend using get_trend function (always check most recent position for current trend)
-                trend = calculator.get_trend(
-                    data, dots_valid, symbol, index=bar_index)
+                trend = calculator.get_trend(data, dots_valid, index=bar_index)
 
                 # Store data in session state (don't store calculator, recreate it when needed)
                 st.session_state.chart_data = {
@@ -156,7 +155,6 @@ if plot_button:
                         name=symbol,
                     )
                 fig = go.Figure(data=[trace])
-
                 # Add dots scatter plot if we have valid dots
                 if len(dots_valid) > 0:
                     fig.add_trace(go.Scatter(
@@ -176,7 +174,7 @@ if plot_button:
                 line_configs = [
                     {
                         'func': calculator.get_5_2_resistance,
-                        'args': lambda: (data, symbol, bar_index),
+                        'args': lambda: (data, bar_index),
                         'name': '5/2 Resistance',
                         'text': lambda p1, p2: f"5-2D {p2[1]:.2f}",
                         'color': 'red',
@@ -184,7 +182,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_5_2_support,
-                        'args': lambda: (data, symbol, bar_index),
+                        'args': lambda: (data, bar_index),
                         'name': '5/2 Support',
                         'text': lambda p1, p2: f"5-2U {p2[1]:.2f}",
                         'color': 'green',
@@ -192,7 +190,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_5_1_resistance,
-                        'args': lambda: (data, symbol, bar_index),
+                        'args': lambda: (data, bar_index),
                         'name': '5/1 Resistance',
                         'text': lambda p1, p2: f"5-1D {p2[1]:.2f}",
                         'color': 'red',
@@ -200,7 +198,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_5_1_support,
-                        'args': lambda: (data, symbol, bar_index),
+                        'args': lambda: (data, bar_index),
                         'name': '5/1 Support',
                         'text': lambda p1, p2: f"5-1U {p2[1]:.2f}",
                         'color': 'green',
@@ -208,7 +206,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_5_3_support,
-                        'args': lambda: (data, symbol, bar_index),
+                        'args': lambda: (data, bar_index),
                         'name': '5/3 Support',
                         'text': lambda p1, p2: f"5-3U {p2[1]:.2f}",
                         'color': 'green',
@@ -216,7 +214,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_5_3_resistance,
-                        'args': lambda: (data, symbol, bar_index),
+                        'args': lambda: (data, bar_index),
                         'name': '5/3 Resistance',
                         'text': lambda p1, p2: f"5-3D {p2[1]:.2f}",
                         'color': 'red',
@@ -224,7 +222,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_5_9_support,
-                        'args': lambda: (data, symbol, bar_index),
+                        'args': lambda: (data, bar_index),
                         'name': '5/9 Support',
                         'text': lambda p1, p2: f"5-9U {p2[1]:.2f}",
                         'color': 'green',
@@ -232,7 +230,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_5_9_resistance,
-                        'args': lambda: (data, symbol, bar_index),
+                        'args': lambda: (data, bar_index),
                         'name': '5/9 Resistance',
                         'text': lambda p1, p2: f"5-9D {p2[1]:.2f}",
                         'color': 'red',
@@ -240,7 +238,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_6_1_support,
-                        'args': lambda: (data, dots_valid['dots'], symbol, bar_index),
+                        'args': lambda: (data, dots_valid['dots'], bar_index),
                         'name': '6/1 Support',
                         'text': lambda p1, p2: f"6-1U {p2[1]:.2f}",
                         'color': 'green',
@@ -248,7 +246,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_6_1_resistance,
-                        'args': lambda: (data, dots_valid['dots'], symbol, bar_index),
+                        'args': lambda: (data, dots_valid['dots'], bar_index),
                         'name': '6/1 Resistance',
                         'text': lambda p1, p2: f"6-1D {p2[1]:.2f}",
                         'color': 'red',
@@ -256,7 +254,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_6_5_resistance,
-                        'args': lambda: (data, dots_valid['dots'], symbol, bar_index),
+                        'args': lambda: (data, dots_valid['dots'], bar_index),
                         'name': '6/5 Resistance',
                         'text': lambda p1, p2: f"6-5D {p2[1]:.2f}",
                         'color': 'red',
@@ -264,7 +262,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_6_5_support,
-                        'args': lambda: (data, dots_valid['dots'], symbol, bar_index),
+                        'args': lambda: (data, dots_valid['dots'], bar_index),
                         'name': '6/5 Support',
                         'text': lambda p1, p2: f"6-5U {p2[1]:.2f}",
                         'color': 'green',
@@ -272,7 +270,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_6_7_support,
-                        'args': lambda: (data, dots_valid['dots'], symbol, bar_index),
+                        'args': lambda: (data, dots_valid['dots'], bar_index),
                         'name': '6/7 Support',
                         'text': lambda p1, p2: f"6-7U {p2[1]:.2f}",
                         'color': 'green',
@@ -280,7 +278,7 @@ if plot_button:
                     },
                     {
                         'func': calculator.get_6_7_resistance,
-                        'args': lambda: (data, dots_valid['dots'], symbol, bar_index),
+                        'args': lambda: (data, dots_valid['dots'], bar_index),
                         'name': '6/7 Resistance',
                         'text': lambda p1, p2: f"6-7D {p2[1]:.2f}",
                         'color': 'red',
@@ -416,6 +414,10 @@ if st.session_state.chart_fig is not None and st.session_state.chart_data is not
     st.plotly_chart(st.session_state.chart_fig, width='stretch', config={
                     "modeBarButtonsToAdd": ["pan2d"]})
 
+    # Display the dataframe
+    st.subheader("📋 Data")
+    st.dataframe(chart_data['data'], use_container_width=True)
+
     # Show some basic stats
     st.subheader("📊 Summary Statistics")
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -461,15 +463,18 @@ if st.session_state.chart_fig is not None and st.session_state.chart_data is not
                     except:
                         st.error("API key not found")
 
-                    # Recreate calculator
-                    calculator = Calculator()
+                    # Recreate calculator with stored parameters
+                    calculator = Calculator(
+                        symbol=chart_data['symbol'],
+                        period=chart_data['period'],
+                        interval=chart_data['interval']
+                    )
                     # Get analysis from Groq
                     analysis_result = calculator.get_gpt_analysis(
                         chart_data['data'],
                         chart_data['dots_valid'],
-                        chart_data['symbol'],
-                        chart_data['resistances'],
-                        chart_data['supports'],
+                        resistances=chart_data['resistances'],
+                        supports=chart_data['supports'],
                         api_key=api_key
                     )
                     # Store in session state
