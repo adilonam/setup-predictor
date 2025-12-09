@@ -116,6 +116,10 @@ if plot_button:
                 calculator = Calculator()
                 dots_valid = calculator.calculate_dots(data, symbol)
 
+                # Get trend using get_trend function (always check most recent position for current trend)
+                trend = calculator.get_trend(
+                    data, dots_valid, symbol, index=bar_index)
+
                 # Store data in session state (don't store calculator, recreate it when needed)
                 st.session_state.chart_data = {
                     'data': data,
@@ -128,7 +132,8 @@ if plot_button:
                     'close_col': close_col,
                     'chart_type': chart_type,
                     'period': period,
-                    'interval': interval
+                    'interval': interval,
+                    'trend': trend
                 }
 
                 # Create chart based on selection
@@ -413,7 +418,7 @@ if st.session_state.chart_fig is not None and st.session_state.chart_data is not
 
     # Show some basic stats
     st.subheader("📊 Summary Statistics")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.metric("Current Price", f"${chart_data['close_col'].iloc[-1]:.2f}")
     with col2:
@@ -425,6 +430,15 @@ if st.session_state.chart_fig is not None and st.session_state.chart_data is not
             chart_data['close_col'].iloc[0]
         change_pct = (change / chart_data['close_col'].iloc[0]) * 100
         st.metric("Change", f"${change:.2f}", f"{change_pct:.2f}%")
+    with col5:
+        # Display trend
+        trend = chart_data.get('trend', 'NULL')
+        if trend == "UP":
+            st.metric("Trend", "▲ UP", delta="UP", delta_color="normal")
+        elif trend == "DOWN":
+            st.metric("Trend", "▼ DOWN", delta="DOWN", delta_color="inverse")
+        else:
+            st.metric("Trend", "— NULL", delta="NULL")
 
     # LLM Analysis Section
     st.markdown("---")

@@ -110,6 +110,80 @@ class Calculator:
 
         return dots_valid
 
+    def get_trend(self, df, dots, symbol, index=-1):
+        """
+        Determine trend based on three consecutive closes compared to their dots values.
+
+        Args:
+            df: DataFrame with OHLC data
+            dots: Dots DataFrame (from calculate_dots) or Series
+            symbol: Stock symbol
+            index: Index to check from (default -1 for last position)
+
+        Returns:
+            "UP" if three consecutive closes are all higher than their corresponding dots
+            "DOWN" if three consecutive closes are all lower than their corresponding dots
+            "NULL" if neither condition is met or insufficient data
+        """
+        # Extract Close from dataframe
+        if isinstance(df.columns, pd.MultiIndex):
+            close = df[('Close', symbol)]
+        else:
+            close = df['Close']
+
+        # Convert dots to Series if it's a DataFrame
+        if isinstance(dots, pd.DataFrame):
+            dots_series = dots['dots']
+        else:
+            dots_series = dots
+
+        # Check bounds: need at least 3 bars
+        if index < 0:
+            pos_index = len(close) + index
+        else:
+            pos_index = index
+
+        # Need at least 3 consecutive closes to check
+        if pos_index < 2 or pos_index >= len(close):
+            return "NULL"
+
+        # Get the date indices for the last 3 closes (index-2, index-1, index)
+        date_idx_0 = close.index[pos_index-1]
+        date_idx_1 = close.index[pos_index-2]
+        date_idx_2 = close.index[pos_index - 3]
+
+        # Get the three closes
+        close_0 = close.iloc[pos_index]
+        close_1 = close.iloc[pos_index - 1]
+        close_2 = close.iloc[pos_index - 2]
+
+        # Check for NaN values in closes
+        if pd.isna(close_0) or pd.isna(close_1) or pd.isna(close_2):
+            return "NULL"
+
+        # Get corresponding dots values using index (since dots_valid has same index as df)
+        try:
+            dot_0 = dots_series.loc[date_idx_0] if date_idx_0 in dots_series.index else pd.NA
+            dot_1 = dots_series.loc[date_idx_1] if date_idx_1 in dots_series.index else pd.NA
+            dot_2 = dots_series.loc[date_idx_2] if date_idx_2 in dots_series.index else pd.NA
+        except (KeyError, IndexError):
+            return "NULL"
+
+        # Check for NaN values in dots
+        if pd.isna(dot_0) or pd.isna(dot_1) or pd.isna(dot_2):
+            return "NULL"
+
+        # Check if all three closes are higher than their dots (UP trend)
+        if close_0 > dot_0 and close_1 > dot_1 and close_2 > dot_2:
+            return "UP"
+
+        # Check if all three closes are lower than their dots (DOWN trend)
+        if close_0 < dot_0 and close_1 < dot_1 and close_2 < dot_2:
+            return "DOWN"
+
+        # Neither condition met
+        return "NULL"
+
     def get_5_2_resistance(self, df, symbol, index=-1):
         #  5-2 Down (resistance) lines ONLY EXIST when the High of Bar 1 is higher than the High of Bar 2. The
         # line connects the high of Bar 2 to High of Bar 1 and projects out to Bar 0.
