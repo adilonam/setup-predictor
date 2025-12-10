@@ -61,8 +61,9 @@ class Calculator:
                 "Symbol must be provided either in __init__ or as parameter")
 
         try:
-            
-            data = yf.download(symbol, period=period, interval=interval , auto_adjust=False)
+
+            data = yf.download(symbol, period=period,
+                               interval=interval, auto_adjust=False)
 
             # Convert MultiIndex to simple columns if needed
             if isinstance(data.columns, pd.MultiIndex):
@@ -110,6 +111,34 @@ class Calculator:
                                 resample_freq).last()
 
                     data = resampled.dropna()
+
+            # Add a fake row at the end: similar to last row, Close = Open, timestamp = last_index + interval_timestamp
+            if not data.empty:
+                last_row = data.iloc[-1].copy()
+                last_index = data.index[-1]
+
+                # Create new row with Close = Open (using last row's Close as the new Open)
+                new_row = last_row.copy()
+                new_row['Open'] = last_row['Close']
+                new_row['Close'] = last_row['Close']  # Close equals Open
+                new_row['High'] = last_row['Close']  # High equals Close
+                new_row['Low'] = last_row['Close']   # Low equals Close
+
+                # Set Volume to 0 or keep same (using 0 for fake data)
+                if 'Volume' in new_row:
+                    new_row['Volume'] = 0
+
+                # Set other columns to last row's values
+                for col in new_row.index:
+                    if col not in ['Open', 'High', 'Low', 'Close', 'Volume']:
+                        new_row[col] = last_row[col]
+
+                # Create new timestamp: last index + interval_timestamp
+                new_timestamp = last_index + self.interval_timestamp
+
+                # Append the new row
+                new_row_df = pd.DataFrame([new_row], index=[new_timestamp])
+                data = pd.concat([data, new_row_df])
 
             return data
         except Exception as e:
@@ -1067,7 +1096,7 @@ The probabilities should add up to 100%."""
         from tensorflow.keras.models import Sequential
         from tensorflow.keras.layers import Dense, Dropout, BatchNormalization
         from tensorflow.keras.optimizers import Adam
-        
+
         tf.keras.backend.clear_session()
 
         model = Sequential([

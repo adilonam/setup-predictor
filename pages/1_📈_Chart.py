@@ -40,7 +40,7 @@ with col3:
     interval = st.selectbox(
         "Interval",
         options=["1d", "5d", "1wk", "1mo", "3mo"],
-        index=1,  # Default to "1d"
+        index=0,  # Default to "1d"
         help="Select the data interval (1d, 5d, 1wk, 1mo, 3mo)"
     )
 
@@ -57,7 +57,7 @@ with col5:
     # Index selector for resistance/support calculations
     bar_index = st.number_input(
         "Bar Index",
-        value=-1,
+        value=-2,
         min_value=-1000,
         max_value=1000,
         step=1,

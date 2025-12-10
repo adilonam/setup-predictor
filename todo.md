@@ -3,6 +3,6 @@
 
 
 - [x] fix the q4 to start on 1 january
-- [ ] setup for the last bar even not closed yet
+- [x] setup for the last bar even not closed yet
 - [x] trend 
 - [ ] extra weekend space
