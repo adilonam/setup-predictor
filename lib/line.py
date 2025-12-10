@@ -61,9 +61,8 @@ class Calculator:
                 "Symbol must be provided either in __init__ or as parameter")
 
         try:
-
-            data = yf.download(symbol, period=period,
-                               interval=interval, auto_adjust=False)
+            # Always download daily data, then resample to requested interval
+            data = yf.download(symbol, period=period, interval="1d")
 
             # Convert MultiIndex to simple columns if needed
             if isinstance(data.columns, pd.MultiIndex):
