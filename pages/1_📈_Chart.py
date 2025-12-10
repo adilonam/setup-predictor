@@ -39,9 +39,9 @@ with col3:
     # Interval selector
     interval = st.selectbox(
         "Interval",
-        options=["1h", "1d", "5d", "1wk", "1mo", "3mo"],
+        options=["1d", "5d", "1wk", "1mo", "3mo"],
         index=1,  # Default to "1d"
-        help="Select the data interval (1m, 5m, 1h, 1d, 1wk, 1mo, etc.)"
+        help="Select the data interval (1d, 5d, 1wk, 1mo, 3mo)"
     )
 
 with col4:
@@ -91,9 +91,8 @@ if plot_button:
     try:
         with st.spinner("Downloading data..."):
             # Download historical data using Calculator
-            calculator = Calculator()
-            data = calculator.download_data(
-                symbol, period=period, interval=interval)
+            calculator = Calculator(symbol=symbol, period=period, interval=interval)
+            data = calculator.download_data()
 
             if data.empty:
                 st.error(f"No data found for symbol: {symbol}")

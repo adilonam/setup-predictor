@@ -1,37 +1,12 @@
 import pandas as pd
 import numpy as np
-import os
-try:
-    from dotenv import load_dotenv
-    load_dotenv()  # Load environment variables from .env file
-    DOTENV_AVAILABLE = True
-except ImportError:
-    DOTENV_AVAILABLE = False
+from dotenv import load_dotenv
+from groq import Groq
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
+import yfinance as yf
 
-try:
-    from groq import Groq
-    GROQ_AVAILABLE = True
-except ImportError:
-    GROQ_AVAILABLE = False
-
-try:
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.impute import SimpleImputer
-    SKLEARN_AVAILABLE = True
-except ImportError:
-    SKLEARN_AVAILABLE = False
-
-try:
-    import tensorflow as tf
-    TENSORFLOW_AVAILABLE = True
-except ImportError:
-    TENSORFLOW_AVAILABLE = False
-
-try:
-    import yfinance as yf
-    YFINANCE_AVAILABLE = True
-except ImportError:
-    YFINANCE_AVAILABLE = False
+load_dotenv()  # Load environment variables from .env file
 
 
 class Calculator:
@@ -51,11 +26,6 @@ class Calculator:
         # Calculate timestamp based on interval
         # Convert interval to timedelta
         interval_map = {
-            '1m': pd.Timedelta(minutes=1),
-            '5m': pd.Timedelta(minutes=5),
-            '15m': pd.Timedelta(minutes=15),
-            '30m': pd.Timedelta(minutes=30),
-            '1h': pd.Timedelta(hours=1),
             '1d': pd.Timedelta(days=1),
             '5d': pd.Timedelta(days=5),
             '1wk': pd.Timedelta(weeks=1),
@@ -70,6 +40,7 @@ class Calculator:
     def download_data(self, symbol=None, period=None, interval=None):
         """
         Download historical stock data using yfinance.
+        Always downloads daily data, then resamples to requested interval.
         Uses instance attributes if parameters not provided.
 
         Args:
@@ -80,10 +51,6 @@ class Calculator:
         Returns:
             DataFrame with OHLC data (simple columns, not MultiIndex), or empty DataFrame if download fails
         """
-        if not YFINANCE_AVAILABLE:
-            raise ImportError(
-                "yfinance is required for download_data. Please install it with: pip install yfinance")
-
         # Use instance attributes if parameters not provided
         symbol = symbol or self.symbol
         period = period or self.period
@@ -94,7 +61,8 @@ class Calculator:
                 "Symbol must be provided either in __init__ or as parameter")
 
         try:
-            data = yf.download(symbol, period=period, interval=interval)
+            
+            data = yf.download(symbol, period=period, interval=interval , auto_adjust=False)
 
             # Convert MultiIndex to simple columns if needed
             if isinstance(data.columns, pd.MultiIndex):
@@ -103,8 +71,45 @@ class Calculator:
                     data = data.xs(symbol, level=1, axis=1)
                 else:
                     # If symbol not in MultiIndex, take first column set
-                    data = data.iloc[:, data.columns.get_level_values(1).unique()[
-                        0]]
+                    first_symbol = data.columns.get_level_values(1).unique()[0]
+                    data = data.xs(first_symbol, level=1, axis=1)
+
+            # Resample to requested interval if not daily
+            if interval != "1d":
+                # Map interval to pandas resample frequency
+                interval_map = {
+                    '5d': '5D',
+                    '1wk': 'W',
+                    '1mo': 'M',
+                    '3mo': 'Q',  # Quarterly
+                }
+
+                resample_freq = interval_map.get(interval)
+                if resample_freq:
+                    # Resample OHLC data
+                    # Open: first value, High: max, Low: min, Close: last
+                    resampled = pd.DataFrame()
+                    resampled['Open'] = data['Open'].resample(
+                        resample_freq).first()
+                    resampled['High'] = data['High'].resample(
+                        resample_freq).max()
+                    resampled['Low'] = data['Low'].resample(
+                        resample_freq).min()
+                    resampled['Close'] = data['Close'].resample(
+                        resample_freq).last()
+
+                    # Add Volume if present
+                    if 'Volume' in data.columns:
+                        resampled['Volume'] = data['Volume'].resample(
+                            resample_freq).sum()
+
+                    # Add other columns if present (e.g., Dividends, Stock Splits)
+                    for col in data.columns:
+                        if col not in ['Open', 'High', 'Low', 'Close', 'Volume']:
+                            resampled[col] = data[col].resample(
+                                resample_freq).last()
+
+                    data = resampled.dropna()
 
             return data
         except Exception as e:
@@ -866,15 +871,6 @@ PROBABILITY DOWN: [percentage]%
         Returns:
             Dictionary with 'analysis', 'probability_up', 'probability_down', and 'raw_response'
         """
-        if not GROQ_AVAILABLE:
-            return {
-                'error': 'Groq library not installed. Please install it with: pip install groq',
-                'analysis': None,
-                'probability_up': None,
-                'probability_down': None,
-                'raw_response': None
-            }
-
         if api_key is None:
             return {
                 'error': 'Groq API key not provided. Please set GROQ_API_KEY environment variable or pass api_key parameter.',
@@ -1036,10 +1032,6 @@ The probabilities should add up to 100%."""
 
     def prepare_model_data(self, result_df, symbol):
         """Prepare data for model training/prediction"""
-        if not SKLEARN_AVAILABLE:
-            raise ImportError(
-                "scikit-learn is required for prepare_model_data")
-
         # Extract feature columns (all except price_up)
         if isinstance(result_df.columns, pd.MultiIndex):
             feature_cols = [
@@ -1071,13 +1063,11 @@ The probabilities should add up to 100%."""
 
     def create_model(self, n_features):
         """Create TensorFlow model"""
-        if not TENSORFLOW_AVAILABLE:
-            raise ImportError("TensorFlow is required for create_model")
-
+        import tensorflow as tf
         from tensorflow.keras.models import Sequential
         from tensorflow.keras.layers import Dense, Dropout, BatchNormalization
         from tensorflow.keras.optimizers import Adam
-
+        
         tf.keras.backend.clear_session()
 
         model = Sequential([
