@@ -192,14 +192,13 @@ class Calculator:
 
         return dots_valid
 
-    def get_trend(self, df, dots, symbol=None, index=-1):
+    def get_trend(self, df, dots, index=-1):
         """
         Determine trend based on three consecutive closes compared to their dots values.
 
         Args:
             df: DataFrame with OHLC data
             dots: Dots DataFrame (from calculate_dots) or Series
-            symbol: Stock symbol (optional, uses self.symbol if not provided)
             index: Index to check from (default -1 for last position)
 
         Returns:
@@ -207,9 +206,6 @@ class Calculator:
             "DOWN" if three consecutive closes are all lower than their corresponding dots
             "NULL" if neither condition is met or insufficient data
         """
-        # Use instance symbol if not provided
-        symbol = symbol or self.symbol
-
         # Extract Close from dataframe (simple columns)
         close = df['Close']
 
@@ -666,12 +662,11 @@ class Calculator:
 
         return None, None
 
-    def get_6_5_support(self, df, dots, symbol, index=-1):
+    def get_6_5_support(self, df, dots, index=-1):
         #         6-5 UP is the identical calculation to 6-1 Down – except it is LESSER/EQUAL to the Close of Bar 1.
         # 6-5 Up (support) line runs from the Low of Bar 1 thru Dot Bar 1 and Projects to Bar 0 BELOW the Close
         # Bar 1.
         # Equation = Dot Bar 1 + [Dot(1)-Low(1)] = 6-1 Down for Bar 0 (If LESS THAN/EQUAL than Close of Bar 1)
-        symbol = symbol or self.symbol
 
         # Extract columns (simple columns)
         high = df['High']
@@ -709,10 +704,9 @@ class Calculator:
 
         return None, None
 
-    def get_6_7_support(self, df, dots, symbol, index=-1):
+    def get_6_7_support(self, df, dots, index=-1):
         #         6-7 Up runs from the Low of Bar 1 to the Dot 1 (LESS THAN Low Bar1 ) and projects to Bar 0
         # Equation = Dot 1-[(Low(1)-Dot(1)] = 6-7 Up (providing Dot 1 is BELOW Low 1)
-        symbol = symbol or self.symbol
 
         # Extract columns (simple columns)
         high = df['High']
@@ -740,7 +734,7 @@ class Calculator:
                 dots_series = dots['dots']
             else:
                 dots_series = dots
-
+            
             # Check if Dot 1 is BELOW Low 1
             if dots_series.iloc[bar_1_idx] < low.iloc[bar_1_idx]:
                 # Point 1: Low of Bar 1 (Bar 1 date, Low(Bar 1))
@@ -798,10 +792,7 @@ class Calculator:
 
         return None, None
 
-    def get_prompt(self, df, dots, resistances=None, supports=None):
-        # Use instance symbol
-        symbol = self.symbol
-
+    def get_prompt(self, df, resistances=None, supports=None):
         # Extract columns (simple columns)
         high = df['High']
         low = df['Low']
@@ -845,7 +836,7 @@ class Calculator:
         current_price = close.iloc[-1]
 
         # Create the prompt
-        prompt = f"""You are a technical analysis expert. Analyze the following stock data for {symbol} and provide a brief analysis report.
+        prompt = f"""You are a technical analysis expert. Analyze the following stock data for {self.symbol} and provide a brief analysis report.
 
 LAST 10 BARS (OHLC Data):
 """
@@ -884,7 +875,7 @@ PROBABILITY DOWN: [percentage]%
 
         return prompt
 
-    def get_gpt_analysis(self, df, dots, symbol=None, resistances=None, supports=None, api_key=None):
+    def get_gpt_analysis(self, df, dots, resistances=None, supports=None, api_key=None):
         """
         Get GPT analysis for the stock data using Groq API.
 
@@ -1058,13 +1049,13 @@ The probabilities should add up to 100%."""
 
         return result_df
 
-    def prepare_model_data(self, result_df, symbol):
+    def prepare_model_data(self, result_df):
         """Prepare data for model training/prediction"""
         # Extract feature columns (all except price_up)
         if isinstance(result_df.columns, pd.MultiIndex):
             feature_cols = [
                 col for col in result_df.columns if col[0] != 'price_up']
-            target_col = ('price_up', symbol)
+            target_col = ('price_up', self.symbol)
         else:
             feature_cols = [
                 col for col in result_df.columns if col != 'price_up']
