@@ -6,4 +6,4 @@
 - [x] setup for the last bar even not closed yet
 - [x] trend 
 - [ ] extra weekend space
-- [ ] add 6-7 line  
+- [?] add 6-7 line , we have to decide 6-5 vs 6-7  

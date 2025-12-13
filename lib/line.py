@@ -37,7 +37,7 @@ class Calculator:
         self.interval_timestamp = interval_map.get(
             interval, pd.Timedelta(days=1))
 
-    def download_data(self, symbol=None, period=None, interval=None):
+    def download_data(self):
         """
         Download historical stock data using yfinance.
         Always downloads daily data, then resamples to requested interval.
@@ -51,31 +51,28 @@ class Calculator:
         Returns:
             DataFrame with OHLC data (simple columns, not MultiIndex), or empty DataFrame if download fails
         """
-        # Use instance attributes if parameters not provided
-        symbol = symbol or self.symbol
-        period = period or self.period
-        interval = interval or self.interval
+        
 
-        if symbol is None:
+        if self.symbol is None:
             raise ValueError(
                 "Symbol must be provided either in __init__ or as parameter")
 
         try:
             # Always download daily data, then resample to requested interval
-            data = yf.download(symbol, period=period, interval="1d")
+            data = yf.download(self.symbol, period=self.period, interval="1d")
 
             # Convert MultiIndex to simple columns if needed
             if isinstance(data.columns, pd.MultiIndex):
                 # If MultiIndex, extract the data for the symbol
-                if symbol in data.columns.levels[1]:
-                    data = data.xs(symbol, level=1, axis=1)
+                if self.symbol in data.columns.levels[1]:
+                    data = data.xs(self.symbol, level=1, axis=1)
                 else:
                     # If symbol not in MultiIndex, take first column set
                     first_symbol = data.columns.get_level_values(1).unique()[0]
                     data = data.xs(first_symbol, level=1, axis=1)
 
             # Resample to requested interval if not daily
-            if interval != "1d":
+            if self.interval != "1d":
                 # Map interval to pandas resample frequency
                 interval_map = {
                     '5d': '5D',
@@ -84,7 +81,7 @@ class Calculator:
                     '3mo': 'Q',  # Quarterly
                 }
 
-                resample_freq = interval_map.get(interval)
+                resample_freq = interval_map.get(self.interval)
                 if resample_freq:
                     # Resample OHLC data
                     # Open: first value, High: max, Low: min, Close: last
@@ -1042,8 +1039,8 @@ The probabilities should add up to 100%."""
         for idx in range(len(result_df) - 1):
             current_close = close_col.iloc[idx]
             next_close = close_col.iloc[idx + 1]
-
             price_up_value = 1 if next_close > current_close else 0
+
             result_df.iloc[idx, result_df.columns.get_loc(
                 target_col)] = price_up_value
 

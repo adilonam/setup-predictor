@@ -1,5 +1,4 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -68,27 +67,27 @@ if 'imputer' not in st.session_state:
     st.session_state.imputer = None
 if 'training_history' not in st.session_state:
     st.session_state.training_history = None
-if 'calculator' not in st.session_state:
-    st.session_state.calculator = Calculator()
-
-
 # Main processing
 if predict_button:
     try:
+        # Initialize calculator with symbol, period, and interval
+        calculator = Calculator(
+            symbol=symbol, period=period, interval=interval)
+        st.session_state.calculator = calculator
+
         with st.spinner("Downloading data..."):
-            data = yf.download(symbol, period=period, interval=interval)
+            data = calculator.download_data()
 
             if data.empty:
                 st.error(f"No data found for symbol: {symbol}")
             else:
-                calculator = st.session_state.calculator
 
                 with st.spinner("Calculating resistance and support levels..."):
-                    result_df = calculator.create_result_df(data, symbol)
+                    result_df = calculator.create_result_df(data)
 
                 with st.spinner("Preparing data for model..."):
                     X_imputed, y, imputer = calculator.prepare_model_data(
-                        result_df, symbol)
+                        result_df)
 
                     # Convert to numpy arrays
                     X_array = X_imputed.values.astype(np.float32)
