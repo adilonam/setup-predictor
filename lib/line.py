@@ -789,7 +789,7 @@ class Calculator:
 
         return None, None
 
-    def get_prompt(self, df, resistances=None, supports=None):
+    def get_prompt(self, df,dots, resistances=None, supports=None):
         # Extract columns (simple columns)
         high = df['High']
         low = df['Low']
